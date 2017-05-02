@@ -63,14 +63,26 @@ function process_response(stream)
         end
     end
     @schedule begin
-        while stream.state < BodyDone && !eof(stream.socket)
-            last_received = now()
-            data = readavailable(stream.socket)
-            if length(data) > 0
-                add_data(rp, data)
+        delay = 0.05
+        for t in 1:4
+            try 
+                while stream.state < BodyDone && !eof(stream.socket)
+                    last_received = now()
+                    data = readavailable(stream.socket)
+                    if length(data) > 0
+                        add_data(rp, data)
+                    end
+                end
+                put!(status_channel, :success)
+                break
+            catch e 
+                println("catch a request error: $e")
+                @show typeof(e)
+                sleep(delay * (0.8 + (0.4 * rand())))
+                delay *= 10
+                continue 
             end
-        end
-        put!(status_channel, :success)
+        end 
     end
     status = take!(status_channel)
     status == :timeout && throw(TimeoutException(timeout))
